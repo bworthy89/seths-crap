@@ -19,6 +19,7 @@ Transform your Arduino Mega into a powerful custom input device with up to 40 co
 ✅ **USB HID Keyboard**: Native keyboard emulation (Ctrl+ commands)
 ✅ **Encoder Modes**: 4 increment modes (1x, 10x, 100x, 1000x)
 ✅ **User-Friendly GUI**: PyQt5 desktop application for easy configuration
+✅ **Auto-Update**: Automatic update checking and one-click installation from GitHub
 ✅ **Persistent Storage**: EEPROM-based configuration (survives power cycles)
 ✅ **Pin Selection**: Visual pin assignment with validation
 ✅ **Custom Naming**: Name each input for easy identification
@@ -134,6 +135,7 @@ python main.py
 ## Documentation
 
 - **[Launcher Scripts Guide](LAUNCHER_README.md)**: Auto-install Python and dependencies (Windows)
+- **[Auto-Update Guide](docs/auto-update-guide.md)**: Automatic updates from GitHub releases
 - **[Python Installation](docs/python-installation.md)**: Manual Python installation guide
 - **[User Guide](docs/user-guide.md)**: Complete setup and usage instructions
 - **[Hardware Wiring](docs/hardware-wiring.md)**: Detailed wiring diagrams and pin assignments

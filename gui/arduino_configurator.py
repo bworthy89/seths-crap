@@ -10,14 +10,23 @@ import sys
 import json
 import serial
 import serial.tools.list_ports
+from pathlib import Path
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QComboBox, QPushButton, QTableWidget, QTableWidgetItem,
     QMessageBox, QGroupBox, QLineEdit, QSpinBox, QHeaderView,
-    QFrame, QTextEdit
+    QFrame, QTextEdit, QProgressDialog, QMenu, QAction
 )
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt5.QtGui import QFont, QColor
+
+# Import updater module
+try:
+    from updater import Updater
+    UPDATER_AVAILABLE = True
+except ImportError:
+    UPDATER_AVAILABLE = False
+    print("Warning: Updater module not available")
 
 
 class ArduinoConfigurator(QMainWindow):
@@ -73,11 +82,36 @@ class ArduinoConfigurator(QMainWindow):
         # Status bar
         self.statusBar().showMessage("Ready - Not Connected")
 
+        # Menu bar
+        self.create_menu_bar()
+
         # Apply styling
         self.apply_styling()
 
         # Refresh serial ports on startup
         self.refresh_ports()
+
+        # Check for updates on startup (after a delay)
+        if UPDATER_AVAILABLE:
+            QTimer.singleShot(2000, self.check_for_updates_async)
+
+    def create_menu_bar(self):
+        """Create menu bar with Help menu"""
+        menubar = self.menuBar()
+
+        # Help menu
+        help_menu = menubar.addMenu("Help")
+
+        # Check for updates action
+        if UPDATER_AVAILABLE:
+            update_action = QAction("Check for Updates", self)
+            update_action.triggered.connect(self.check_for_updates_manual)
+            help_menu.addAction(update_action)
+
+        # About action
+        about_action = QAction("About", self)
+        about_action.triggered.connect(self.show_about)
+        help_menu.addAction(about_action)
 
     def create_connection_section(self):
         group = QGroupBox("Arduino Connection")
@@ -492,6 +526,196 @@ class ArduinoConfigurator(QMainWindow):
         # Auto-scroll to bottom
         self.console.verticalScrollBar().setValue(
             self.console.verticalScrollBar().maximum()
+        )
+
+    def check_for_updates_async(self):
+        """Check for updates asynchronously on startup"""
+        if not UPDATER_AVAILABLE:
+            return
+
+        try:
+            updater = Updater()
+            update_info = updater.check_for_updates(timeout=5)
+
+            if update_info and update_info['available']:
+                # Show notification
+                reply = QMessageBox.question(
+                    self,
+                    "Update Available",
+                    f"A new version ({update_info['latest_version']}) is available!\n\n"
+                    f"Current version: {update_info['current_version']}\n\n"
+                    f"Do you want to download and install it now?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No
+                )
+
+                if reply == QMessageBox.Yes:
+                    self.perform_update(updater, update_info)
+
+        except Exception as e:
+            # Silent fail on startup check
+            print(f"Auto-update check failed: {e}")
+
+    def check_for_updates_manual(self):
+        """Manually check for updates (from menu)"""
+        if not UPDATER_AVAILABLE:
+            QMessageBox.warning(
+                self,
+                "Updater Not Available",
+                "The updater module is not available."
+            )
+            return
+
+        try:
+            # Show checking dialog
+            progress = QProgressDialog("Checking for updates...", None, 0, 0, self)
+            progress.setWindowModality(Qt.WindowModal)
+            progress.setMinimumDuration(0)
+            progress.show()
+            QApplication.processEvents()
+
+            updater = Updater()
+            update_info = updater.check_for_updates(timeout=10)
+
+            progress.close()
+
+            if update_info is None:
+                QMessageBox.warning(
+                    self,
+                    "Update Check Failed",
+                    "Failed to check for updates. Please check your internet connection."
+                )
+                return
+
+            if not update_info['available']:
+                QMessageBox.information(
+                    self,
+                    "No Updates",
+                    f"You have the latest version ({update_info['current_version']})."
+                )
+                return
+
+            # Show update dialog with release notes
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle("Update Available")
+            msg_box.setText(
+                f"A new version ({update_info['latest_version']}) is available!\n\n"
+                f"Current version: {update_info['current_version']}"
+            )
+            msg_box.setDetailedText(update_info['release_notes'])
+            msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            msg_box.setDefaultButton(QMessageBox.Yes)
+            msg_box.button(QMessageBox.Yes).setText("Install Update")
+            msg_box.button(QMessageBox.No).setText("Later")
+
+            if msg_box.exec_() == QMessageBox.Yes:
+                self.perform_update(updater, update_info)
+
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Update check failed:\n{str(e)}"
+            )
+
+    def perform_update(self, updater, update_info):
+        """Download and install update"""
+        # Create progress dialog
+        progress = QProgressDialog(
+            "Downloading update...",
+            "Cancel",
+            0,
+            100,
+            self
+        )
+        progress.setWindowModality(Qt.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setAutoClose(False)
+        progress.show()
+
+        def update_progress(percent, status):
+            progress.setValue(percent)
+            progress.setLabelText(status)
+            QApplication.processEvents()
+
+            if progress.wasCanceled():
+                raise InterruptedError("Update cancelled by user")
+
+        try:
+            # Download and install
+            success = updater.download_and_install_update(
+                update_info['download_url'],
+                callback=update_progress
+            )
+
+            progress.close()
+
+            if success:
+                reply = QMessageBox.question(
+                    self,
+                    "Update Complete",
+                    "Update installed successfully!\n\n"
+                    "The application needs to restart to apply the update.\n\n"
+                    "Restart now?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.Yes
+                )
+
+                if reply == QMessageBox.Yes:
+                    # Close serial connection
+                    if self.serial_connection and self.serial_connection.is_open:
+                        self.serial_connection.close()
+
+                    # Restart application
+                    updater.restart_application()
+
+                    # Exit current instance
+                    QApplication.quit()
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Update Failed",
+                    "Failed to install update. Please try again or download manually."
+                )
+
+        except InterruptedError:
+            progress.close()
+            QMessageBox.information(self, "Cancelled", "Update cancelled.")
+        except Exception as e:
+            progress.close()
+            QMessageBox.critical(
+                self,
+                "Update Error",
+                f"An error occurred during update:\n{str(e)}"
+            )
+
+    def show_about(self):
+        """Show about dialog"""
+        version = "Unknown"
+        if UPDATER_AVAILABLE:
+            try:
+                updater = Updater()
+                version = updater.current_version
+            except:
+                pass
+
+        QMessageBox.about(
+            self,
+            "About Arduino Input Configurator",
+            f"<h2>Arduino Input Configurator</h2>"
+            f"<p><b>Version:</b> {version}</p>"
+            f"<p>GUI configurator for Arduino Mega 2560 + Pro Micro<br>"
+            f"to create custom USB HID keyboard controllers.</p>"
+            f"<p><b>Features:</b></p>"
+            f"<ul>"
+            f"<li>Up to 40 inputs (buttons, encoders, switches, pots)</li>"
+            f"<li>USB HID keyboard emulation</li>"
+            f"<li>EEPROM configuration storage</li>"
+            f"<li>Rotary encoder modes (1x/10x/100x/1000x)</li>"
+            f"</ul>"
+            f"<p><b>GitHub:</b> <a href='https://github.com/bworthy89/seths-crap'>"
+            f"github.com/bworthy89/seths-crap</a></p>"
+            f"<p><b>License:</b> MIT</p>"
         )
 
     def closeEvent(self, event):
