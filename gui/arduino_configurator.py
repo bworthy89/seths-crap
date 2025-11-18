@@ -91,10 +91,6 @@ class ArduinoConfigurator(QMainWindow):
         # Refresh serial ports on startup
         self.refresh_ports()
 
-        # Check for updates on startup (after a delay)
-        if UPDATER_AVAILABLE:
-            QTimer.singleShot(2000, self.check_for_updates_async)
-
     def create_menu_bar(self):
         """Create menu bar with Help menu"""
         menubar = self.menuBar()
@@ -727,6 +723,61 @@ class ArduinoConfigurator(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+
+    # Check for updates before showing main window
+    if UPDATER_AVAILABLE:
+        try:
+            from updater import Updater
+            updater = Updater()
+            update_info = updater.check_for_updates(timeout=5)
+
+            if update_info and update_info['available']:
+                # Show update dialog
+                reply = QMessageBox.question(
+                    None,
+                    "Update Available",
+                    f"A new version is available!\n\n"
+                    f"Current version: {update_info['current_version']}\n"
+                    f"Latest version: {update_info['latest_version']}\n\n"
+                    f"Would you like to update now?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.Yes
+                )
+
+                if reply == QMessageBox.Yes:
+                    # Show progress dialog
+                    progress = QMessageBox(
+                        QMessageBox.Information,
+                        "Updating",
+                        "Downloading and installing update...",
+                        QMessageBox.NoButton
+                    )
+                    progress.show()
+                    app.processEvents()
+
+                    # Download and install update
+                    success = updater.download_and_install_update(update_info['download_url'])
+                    progress.close()
+
+                    if success:
+                        QMessageBox.information(
+                            None,
+                            "Update Complete",
+                            "Update installed successfully!\n\n"
+                            "Please restart the application."
+                        )
+                        sys.exit(0)
+                    else:
+                        QMessageBox.warning(
+                            None,
+                            "Update Failed",
+                            "Failed to install update. The application will start normally.\n\n"
+                            "You can try updating manually from the Help menu."
+                        )
+        except Exception as e:
+            print(f"Update check failed: {e}")
+
+    # Show main window
     window = ArduinoConfigurator()
     window.show()
     sys.exit(app.exec_())
