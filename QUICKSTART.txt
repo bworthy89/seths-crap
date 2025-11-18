@@ -1,0 +1,237 @@
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║          ARDUINO INPUT CONFIGURATOR - QUICK START               ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────┐
+│  EASIEST METHOD (Windows)                                        │
+└──────────────────────────────────────────────────────────────────┘
+
+  NO PYTHON INSTALLED?
+  ────────────────────
+  1. Double-click:  install-python.bat
+  2. Wait 5-10 minutes
+  3. Close Command Prompt
+  4. Double-click:  launch-gui.bat
+  5. Done! GUI opens ✓
+
+
+  ALREADY HAVE PYTHON?
+  ────────────────────
+  1. Double-click:  launch-gui.bat
+  2. Done! GUI opens ✓
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  WHAT THE SCRIPTS DO                                             │
+└──────────────────────────────────────────────────────────────────┘
+
+  install-python.bat
+  ──────────────────
+  • Checks if Python is installed
+  • Downloads Python 3.12 from python.org
+  • Installs Python with PATH configuration
+  • Tries multiple methods (winget, Chocolatey, direct download)
+
+
+  launch-gui.bat
+  ──────────────
+  • Checks if Python is installed
+  • Installs PyQt5 and pyserial (if needed)
+  • Launches the Arduino Configurator GUI
+  • Use this EVERY TIME you want to run the GUI
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  HARDWARE SETUP                                                  │
+└──────────────────────────────────────────────────────────────────┘
+
+  You need TWO Arduino boards:
+  ────────────────────────────
+  [Arduino Mega 2560]  ←→  [Arduino Pro Micro]
+         ↓                         ↓
+      Reads inputs            Sends keyboard
+      Stores config           commands to PC
+
+
+  Wiring (3 wires):
+  ────────────────
+  Mega Pin 18 (TX1)  →  Pro Micro RXI
+  Mega Pin 19 (RX1)  →  Pro Micro TXO
+  Mega GND           →  Pro Micro GND
+
+
+  Both boards need USB connection to PC!
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  UPLOAD ARDUINO FIRMWARE                                         │
+└──────────────────────────────────────────────────────────────────┘
+
+  Using Arduino IDE:
+  ──────────────────
+
+  Step 1: Upload to Pro Micro
+  ────────────────────────────
+  • Open: arduino-config-promicro/arduino-config-promicro.ino
+  • Board: Arduino Leonardo
+  • Port: (Select Pro Micro port)
+  • Click: Upload ✓
+
+
+  Step 2: Upload to Mega 2560
+  ────────────────────────────
+  • Open: arduino-config-mega/arduino-config-mega.ino
+  • Board: Arduino Mega or Mega 2560
+  • Processor: ATmega2560
+  • Port: (Select Mega port)
+  • Click: Upload ✓
+
+
+  Install Libraries First (one time):
+  ────────────────────────────────────
+  Tools → Manage Libraries → Install:
+  • ArduinoJson (v6.x)
+  • Bounce2
+  • Encoder
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  USING THE GUI                                                   │
+└──────────────────────────────────────────────────────────────────┘
+
+  1. Run:  launch-gui.bat
+
+  2. Connect to Arduino:
+     • Click "Refresh Ports"
+     • Select Mega 2560 port
+     • Click "Connect"
+
+  3. Add Inputs:
+     • Click "+ Add Input"
+     • Name: "Fire Button"
+     • Type: Button
+     • Pin 1: 22
+     • Command: CTRL+F
+     • (Repeat for all inputs)
+
+  4. Upload Configuration:
+     • Click "Upload to Arduino"
+     • Configuration saved to EEPROM ✓
+
+  5. Test:
+     • Wire button to Pin 22 and GND
+     • Press button
+     • Should send Ctrl+F to PC ✓
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  TROUBLESHOOTING                                                 │
+└──────────────────────────────────────────────────────────────────┘
+
+  "python is not recognized"
+  ──────────────────────────
+  → Run: install-python.bat
+  → Restart Command Prompt
+
+
+  "No serial ports detected"
+  ──────────────────────────
+  → Check USB cables connected
+  → Click "Refresh Ports"
+  → Try different USB port
+
+
+  "Failed to install dependencies"
+  ────────────────────────────────
+  → Right-click launch-gui.bat → Run as administrator
+
+
+  GUI doesn't open
+  ────────────────
+  → Test: python -c "import PyQt5; print('OK')"
+  → If error: pip install PyQt5 pyserial
+
+
+  Encoders not working
+  ────────────────────
+  → Use interrupt pins: 2, 3, 20, 21
+  → Add 0.1µF capacitors for debouncing
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  FILES & DOCUMENTATION                                           │
+└──────────────────────────────────────────────────────────────────┘
+
+  Essential Files:
+  ────────────────
+  launch-gui.bat              → Run this to start GUI
+  install-python.bat          → Install Python automatically
+  LAUNCHER_README.md          → Launcher script details
+
+  Documentation:
+  ──────────────
+  docs/user-guide.md          → Complete usage guide
+  docs/hardware-wiring.md     → Wiring diagrams & setup
+  docs/python-installation.md → Manual Python install
+  README.md                   → Project overview
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  SUPPORTED INPUTS                                                │
+└──────────────────────────────────────────────────────────────────┘
+
+  ✓ Buttons (momentary push buttons)
+  ✓ Rotary Encoders (with 1x/10x/100x/1000x modes)
+  ✓ Switches (toggle switches)
+  ✓ Potentiometers (analog knobs)
+
+  Maximum: 40 inputs total
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  KEYBOARD COMMANDS                                               │
+└──────────────────────────────────────────────────────────────────┘
+
+  All commands start with CTRL+
+
+  Examples:
+  ─────────
+  CTRL+F           → Ctrl+F
+  CTRL+SPACE       → Ctrl+Space
+  CTRL+UPARROW     → Ctrl+Up Arrow
+  CTRL+F1          → Ctrl+F1
+  CTRL+ENTER       → Ctrl+Enter
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  ESTIMATED COST                                                  │
+└──────────────────────────────────────────────────────────────────┘
+
+  Arduino Mega 2560 (clone)    $12-15
+  Arduino Pro Micro            $5-8
+  Rotary Encoders (5x)         $10-15
+  Buttons (15x)                $5-10
+  Switches (5x)                $5-8
+  Potentiometers (3x)          $3-5
+  Wires & breadboard           $10-15
+  ──────────────────────────────────
+  TOTAL:                       $50-90
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  NEED HELP?                                                      │
+└──────────────────────────────────────────────────────────────────┘
+
+  1. Check LAUNCHER_README.md for launcher script help
+  2. Check docs/user-guide.md for usage instructions
+  3. Check docs/hardware-wiring.md for wiring diagrams
+  4. Review README.md for project overview
+
+
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║  Ready? Double-click launch-gui.bat to start!                   ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
