@@ -28,9 +28,9 @@ class Updater:
         """
         self.repo_owner = repo_owner
         self.repo_name = repo_name
+        self.project_root = Path(__file__).parent.parent.absolute()
         self.current_version = current_version or self._read_version_file()
         self.github_api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
-        self.project_root = Path(__file__).parent.parent.absolute()
 
     def _read_version_file(self):
         """Read current version from VERSION file."""
