@@ -868,9 +868,10 @@ class ArduinoConfigurator(QMainWindow):
 
         try:
             updater = Updater()
-            update_available, latest_version = updater.check_for_updates()
+            update_info = updater.check_for_updates()
 
-            if update_available:
+            if update_info and update_info.get('available', False):
+                latest_version = update_info['latest_version']
                 self.log_console(f"Update available: v{latest_version}")
                 self.show_update_notification(latest_version)
 
@@ -887,13 +888,16 @@ class ArduinoConfigurator(QMainWindow):
 
         try:
             updater = Updater()
-            update_available, latest_version = updater.check_for_updates()
+            update_info = updater.check_for_updates()
 
-            if update_available:
+            if update_info and update_info.get('available', False):
+                latest_version = update_info['latest_version']
+                self.pending_update_info = update_info  # Store for perform_update
                 self.show_update_dialog(latest_version)
             else:
+                current_version = update_info.get('current_version', 'unknown') if update_info else 'unknown'
                 QMessageBox.information(self, "Up to Date",
-                                      "You are already using the latest version.")
+                                      f"You are already using the latest version (v{current_version}).")
 
         except Exception as e:
             QMessageBox.critical(self, "Update Check Failed",
@@ -919,6 +923,16 @@ class ArduinoConfigurator(QMainWindow):
         if not UPDATER_AVAILABLE:
             return
 
+        # Get download URL from pending update info
+        if not hasattr(self, 'pending_update_info') or not self.pending_update_info:
+            QMessageBox.warning(self, "Update Error", "No update information available.")
+            return
+
+        download_url = self.pending_update_info.get('download_url')
+        if not download_url:
+            QMessageBox.warning(self, "Update Error", "No download URL available.")
+            return
+
         progress = QProgressDialog("Downloading update...", "Cancel", 0, 0, self)
         progress.setWindowModality(Qt.WindowModal)
         progress.setWindowTitle("Updating")
@@ -926,7 +940,7 @@ class ArduinoConfigurator(QMainWindow):
 
         try:
             updater = Updater()
-            success = updater.download_and_install_update()
+            success = updater.download_and_install_update(download_url)
 
             progress.close()
 
