@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+lib/
+.clang_complete
+.gcc-flags.json
+
+# Arduino
+*.hex
+*.elf
+*.eep
+*.lss
+*.map
+
+# IDEs
+.vscode/
+.vs/
+.idea/
+*.suo
+*.user
+*.sln.docstates
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temp files
+*.tmp
+*.bak
+*.swp
+*~
+nul
