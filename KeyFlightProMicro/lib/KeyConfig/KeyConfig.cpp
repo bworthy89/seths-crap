@@ -17,42 +17,39 @@ void KeyConfig::init() {
 }
 
 void KeyConfig::setDefaults() {
-    // Set signature
-    strncpy(_config.signature, SIGNATURE, 8);
-    _config.version = 1;
-    _config.moduleCount = 0;
-
-    // Clear all modules
-    memset(_config.modules, 0, sizeof(_config.modules));
+    // Set header
+    strncpy(_header.signature, SIGNATURE, 8);
+    _header.version = 1;
+    _header.moduleCount = 0;
 }
 
 void KeyConfig::save() {
-    // Write configuration to EEPROM
-    EEPROM.put(EEPROM_START_ADDR, _config);
+    // Write header to EEPROM
+    EEPROM.put(EEPROM_START_ADDR, _header);
 }
 
 bool KeyConfig::load() {
-    // Read configuration from EEPROM
-    KeyConfiguration tempConfig;
-    EEPROM.get(EEPROM_START_ADDR, tempConfig);
+    // Read header from EEPROM
+    KeyConfigHeader tempHeader;
+    EEPROM.get(EEPROM_START_ADDR, tempHeader);
 
     // Validate signature
-    if (strncmp(tempConfig.signature, SIGNATURE, 6) != 0) {
+    if (strncmp(tempHeader.signature, SIGNATURE, 6) != 0) {
         return false;
     }
 
     // Validate version
-    if (tempConfig.version != 1) {
+    if (tempHeader.version != 1) {
         return false;
     }
 
     // Validate module count
-    if (tempConfig.moduleCount > 40) {
+    if (tempHeader.moduleCount > 40) {
         return false;
     }
 
-    // Configuration is valid, copy it
-    memcpy(&_config, &tempConfig, sizeof(KeyConfiguration));
+    // Header is valid, copy it
+    memcpy(&_header, &tempHeader, sizeof(KeyConfigHeader));
     return true;
 }
 
@@ -64,27 +61,35 @@ void KeyConfig::reset() {
 bool KeyConfig::setModuleKey(uint8_t moduleId, const char* keyCommand, const char* keyCommand2) {
     // Find existing module or create new one
     int index = findModuleIndex(moduleId);
+    ModuleKeyMap module;
 
     if (index == -1) {
         // Module not found, add new one
-        if (_config.moduleCount >= 40) {
+        if (_header.moduleCount >= 40) {
             return false; // Max modules reached
         }
-        index = _config.moduleCount;
-        _config.moduleCount++;
+        index = _header.moduleCount;
+        _header.moduleCount++;
+        save(); // Save updated header
+    } else {
+        // Read existing module
+        readModule(index, module);
     }
 
     // Set module configuration
-    _config.modules[index].moduleId = moduleId;
-    strncpy(_config.modules[index].keyCommand, keyCommand, 31);
-    _config.modules[index].keyCommand[31] = '\0';
+    module.moduleId = moduleId;
+    strncpy(module.keyCommand, keyCommand, 31);
+    module.keyCommand[31] = '\0';
 
     if (keyCommand2 != nullptr && keyCommand2[0] != '\0') {
-        strncpy(_config.modules[index].keyCommand2, keyCommand2, 31);
-        _config.modules[index].keyCommand2[31] = '\0';
+        strncpy(module.keyCommand2, keyCommand2, 31);
+        module.keyCommand2[31] = '\0';
     } else {
-        _config.modules[index].keyCommand2[0] = '\0';
+        module.keyCommand2[0] = '\0';
     }
+
+    // Write module back to EEPROM
+    writeModule(index, module);
 
     return true;
 }
@@ -93,31 +98,49 @@ const char* KeyConfig::getModuleKey(uint8_t moduleId, int value) {
     int index = findModuleIndex(moduleId);
     if (index == -1) return nullptr;
 
+    // Read module from EEPROM
+    static ModuleKeyMap module;  // Static to persist after return
+    readModule(index, module);
+
     // For encoders: value = 1 (CW) uses keyCommand, value = -1 (CCW) uses keyCommand2
     // For switches: value = 1 (ON) uses keyCommand, value = 0 (OFF) uses keyCommand2
     // For buttons: always use keyCommand
     if (value < 0 || value == 0) {
         // Use keyCommand2 if available
-        if (_config.modules[index].keyCommand2[0] != '\0') {
-            return _config.modules[index].keyCommand2;
+        if (module.keyCommand2[0] != '\0') {
+            return module.keyCommand2;
         }
     }
 
     // Default: use keyCommand
-    return _config.modules[index].keyCommand;
+    return module.keyCommand;
 }
 
 bool KeyConfig::isValid() const {
-    return (strncmp(_config.signature, SIGNATURE, 6) == 0) &&
-           (_config.version == 1) &&
-           (_config.moduleCount <= 40);
+    return (strncmp(_header.signature, SIGNATURE, 6) == 0) &&
+           (_header.version == 1) &&
+           (_header.moduleCount <= 40);
 }
 
 int KeyConfig::findModuleIndex(uint8_t moduleId) {
-    for (int i = 0; i < _config.moduleCount; i++) {
-        if (_config.modules[i].moduleId == moduleId) {
+    ModuleKeyMap module;
+    for (int i = 0; i < _header.moduleCount; i++) {
+        readModule(i, module);
+        if (module.moduleId == moduleId) {
             return i;
         }
     }
     return -1;
+}
+
+void KeyConfig::readModule(int index, ModuleKeyMap& module) {
+    // Calculate EEPROM address for this module
+    int addr = EEPROM_START_ADDR + sizeof(KeyConfigHeader) + (index * sizeof(ModuleKeyMap));
+    EEPROM.get(addr, module);
+}
+
+void KeyConfig::writeModule(int index, const ModuleKeyMap& module) {
+    // Calculate EEPROM address for this module
+    int addr = EEPROM_START_ADDR + sizeof(KeyConfigHeader) + (index * sizeof(ModuleKeyMap));
+    EEPROM.put(addr, module);
 }

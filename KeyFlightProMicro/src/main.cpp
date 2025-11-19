@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <Keyboard.h>
+#include "SimpleKeyboard.h"
 #include "KeyConfig.h"
 #include "KeyExecutor.h"
 
@@ -11,8 +11,8 @@
 KeyConfig keyConfig;
 KeyExecutor keyExecutor;
 
-// Serial buffer
-char serialBuffer[128];
+// Serial buffer (reduced for RAM savings)
+char serialBuffer[64];
 int bufferIndex = 0;
 
 // Function prototypes

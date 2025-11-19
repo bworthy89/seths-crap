@@ -11,11 +11,16 @@ struct ModuleKeyMap {
     char keyCommand2[32];  // For encoders (CW/CCW) and switches (ON/OFF)
 };
 
-// Configuration structure
-struct KeyConfiguration {
+// Configuration header (stored in RAM)
+struct KeyConfigHeader {
     char signature[8];           // "KEYFPM" signature
     uint8_t version;             // Config version
     uint8_t moduleCount;         // Number of modules
+};
+
+// Full configuration structure (stored in EEPROM only)
+struct KeyConfiguration {
+    KeyConfigHeader header;
     ModuleKeyMap modules[40];    // Max 40 modules
 };
 
@@ -42,18 +47,20 @@ public:
     const char* getModuleKey(uint8_t moduleId, int value = 0);
 
     // Get module count
-    uint8_t getModuleCount() const { return _config.moduleCount; }
+    uint8_t getModuleCount() const { return _header.moduleCount; }
 
     // Check if configuration is valid
     bool isValid() const;
 
 private:
-    KeyConfiguration _config;
+    KeyConfigHeader _header;  // Only header in RAM
     static const int EEPROM_START_ADDR = 0;
     static const char* SIGNATURE;
 
     void setDefaults();
     int findModuleIndex(uint8_t moduleId);
+    void readModule(int index, ModuleKeyMap& module);
+    void writeModule(int index, const ModuleKeyMap& module);
 };
 
 #endif // KEYCONFIG_H

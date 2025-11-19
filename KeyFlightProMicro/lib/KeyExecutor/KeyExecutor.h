@@ -2,7 +2,7 @@
 #define KEYEXECUTOR_H
 
 #include <Arduino.h>
-#include <Keyboard.h>
+#include "SimpleKeyboard.h"
 #include "KeyParser.h"
 
 class KeyExecutor {
