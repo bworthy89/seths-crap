@@ -2,18 +2,26 @@
  * Arduino Pro Micro - USB HID Keyboard Bridge
  *
  * This sketch receives serial commands from the Arduino Mega 2560
- * and converts them to USB HID keyboard commands (Ctrl+ combinations).
+ * and converts them to USB HID keyboard commands with support for
+ * multiple simultaneous key presses.
  *
  * Hardware: Arduino Pro Micro (ATmega32u4 with native USB HID support)
  *
  * Serial Protocol:
- * Format: "CTRL+<key>\n"
- * Example: "CTRL+F\n" - sends Ctrl+F
- *          "CTRL+UPARROW\n" - sends Ctrl+Up Arrow
+ * Format: "KEY1+KEY2+KEY3\n"
+ * Examples:
+ *   "A\n" - sends key A
+ *   "L+N+A+V\n" - sends L, N, A, V simultaneously
+ *   "CTRL+A\n" - sends Ctrl+A
+ *   "CTRL+SHIFT+S\n" - sends Ctrl+Shift+S
+ *   "UPARROW\n" - sends Up Arrow
+ *   "CTRL+F1\n" - sends Ctrl+F1
+ *
+ * Supported Modifiers: CTRL, SHIFT, ALT, GUI (Windows key)
  *
  * Wiring:
- * - Connect Mega Serial1 TX (18) to Pro Micro RX
- * - Connect Mega Serial1 RX (19) to Pro Micro TX
+ * - Connect Mega Serial1 TX (18) to Pro Micro RXI
+ * - Connect Mega Serial1 RX (19) to Pro Micro TXO
  * - Connect GND between boards
  */
 
@@ -69,7 +77,7 @@ void loop() {
       inputBuffer += inChar;
 
       // Prevent buffer overflow
-      if (inputBuffer.length() > 50) {
+      if (inputBuffer.length() > 100) {
         inputBuffer = "";
       }
     }
@@ -79,30 +87,37 @@ void loop() {
 void processCommand(String command) {
   command.trim();
 
-  // All commands should start with "CTRL+"
-  if (!command.startsWith("CTRL+")) {
+  if (command.length() == 0) {
     return;
   }
 
-  // Extract the key part after "CTRL+"
-  String keyPart = command.substring(5);
+  // Convert to uppercase for consistent parsing
+  command.toUpperCase();
 
-  if (keyPart.length() == 0) {
+  // Split command by '+' delimiter
+  int keyCount = 0;
+  String keys[10];  // Support up to 10 simultaneous keys
+  int startPos = 0;
+
+  // Parse all keys separated by '+'
+  for (int i = 0; i <= command.length(); i++) {
+    if (i == command.length() || command.charAt(i) == '+') {
+      if (i > startPos && keyCount < 10) {
+        keys[keyCount++] = command.substring(startPos, i);
+      }
+      startPos = i + 1;
+    }
+  }
+
+  if (keyCount == 0) {
     return;
   }
 
-  // Press Ctrl modifier
-  Keyboard.press(KEY_LEFT_CTRL);
-  delay(5);  // Small delay for key registration
+  // Press all keys
+  delay(5);  // Small delay for stability
 
-  // Press the specified key
-  if (keyPart.length() == 1) {
-    // Single character key
-    char key = keyPart.charAt(0);
-    Keyboard.press(key);
-  } else {
-    // Special keys
-    pressSpecialKey(keyPart);
+  for (int i = 0; i < keyCount; i++) {
+    pressKey(keys[i]);
   }
 
   delay(10);  // Hold time
@@ -111,11 +126,36 @@ void processCommand(String command) {
   Keyboard.releaseAll();
 }
 
-void pressSpecialKey(String keyName) {
-  // Convert to uppercase for comparison
-  keyName.toUpperCase();
+void pressKey(String keyName) {
+  keyName.trim();
 
-  // Map special key names to keyboard codes
+  if (keyName.length() == 0) {
+    return;
+  }
+
+  // Check for modifiers
+  if (keyName == "CTRL" || keyName == "CONTROL") {
+    Keyboard.press(KEY_LEFT_CTRL);
+  } else if (keyName == "SHIFT") {
+    Keyboard.press(KEY_LEFT_SHIFT);
+  } else if (keyName == "ALT") {
+    Keyboard.press(KEY_LEFT_ALT);
+  } else if (keyName == "GUI" || keyName == "WIN" || keyName == "WINDOWS") {
+    Keyboard.press(KEY_LEFT_GUI);
+  }
+  // Check for single character keys
+  else if (keyName.length() == 1) {
+    char key = keyName.charAt(0);
+    Keyboard.press(key);
+  }
+  // Check for special keys
+  else {
+    pressSpecialKey(keyName);
+  }
+}
+
+void pressSpecialKey(String keyName) {
+  // Arrow keys
   if (keyName == "UPARROW" || keyName == "UP") {
     Keyboard.press(KEY_UP_ARROW);
   } else if (keyName == "DOWNARROW" || keyName == "DOWN") {
@@ -124,7 +164,9 @@ void pressSpecialKey(String keyName) {
     Keyboard.press(KEY_LEFT_ARROW);
   } else if (keyName == "RIGHTARROW" || keyName == "RIGHT") {
     Keyboard.press(KEY_RIGHT_ARROW);
-  } else if (keyName == "ENTER" || keyName == "RETURN") {
+  }
+  // Action keys
+  else if (keyName == "ENTER" || keyName == "RETURN") {
     Keyboard.press(KEY_RETURN);
   } else if (keyName == "ESC" || keyName == "ESCAPE") {
     Keyboard.press(KEY_ESC);
@@ -136,7 +178,9 @@ void pressSpecialKey(String keyName) {
     Keyboard.press(KEY_BACKSPACE);
   } else if (keyName == "DELETE" || keyName == "DEL") {
     Keyboard.press(KEY_DELETE);
-  } else if (keyName == "HOME") {
+  }
+  // Navigation keys
+  else if (keyName == "HOME") {
     Keyboard.press(KEY_HOME);
   } else if (keyName == "END") {
     Keyboard.press(KEY_END);
@@ -144,7 +188,11 @@ void pressSpecialKey(String keyName) {
     Keyboard.press(KEY_PAGE_UP);
   } else if (keyName == "PAGEDOWN" || keyName == "PGDN") {
     Keyboard.press(KEY_PAGE_DOWN);
-  } else if (keyName == "F1") {
+  } else if (keyName == "INSERT" || keyName == "INS") {
+    Keyboard.press(KEY_INSERT);
+  }
+  // Function keys F1-F12
+  else if (keyName == "F1") {
     Keyboard.press(KEY_F1);
   } else if (keyName == "F2") {
     Keyboard.press(KEY_F2);
@@ -168,6 +216,32 @@ void pressSpecialKey(String keyName) {
     Keyboard.press(KEY_F11);
   } else if (keyName == "F12") {
     Keyboard.press(KEY_F12);
+  }
+  // Function keys F13-F24
+  else if (keyName == "F13") {
+    Keyboard.press(KEY_F13);
+  } else if (keyName == "F14") {
+    Keyboard.press(KEY_F14);
+  } else if (keyName == "F15") {
+    Keyboard.press(KEY_F15);
+  } else if (keyName == "F16") {
+    Keyboard.press(KEY_F16);
+  } else if (keyName == "F17") {
+    Keyboard.press(KEY_F17);
+  } else if (keyName == "F18") {
+    Keyboard.press(KEY_F18);
+  } else if (keyName == "F19") {
+    Keyboard.press(KEY_F19);
+  } else if (keyName == "F20") {
+    Keyboard.press(KEY_F20);
+  } else if (keyName == "F21") {
+    Keyboard.press(KEY_F21);
+  } else if (keyName == "F22") {
+    Keyboard.press(KEY_F22);
+  } else if (keyName == "F23") {
+    Keyboard.press(KEY_F23);
+  } else if (keyName == "F24") {
+    Keyboard.press(KEY_F24);
   }
   // If key not recognized, it won't be pressed
 }

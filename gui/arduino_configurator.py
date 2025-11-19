@@ -151,7 +151,7 @@ class AdvancedSettingsDialog(QDialog):
         # Short press key command
         self.button_short_key = QLineEdit()
         self.button_short_key.setText(self.config.get("buttonShortKey", ""))
-        self.button_short_key.setPlaceholderText("e.g., CTRL+ENTER")
+        self.button_short_key.setPlaceholderText("e.g., CTRL+ENTER, F5, SHIFT+S")
         form.addRow("Short Press Key:", self.button_short_key)
 
         # Long press action
@@ -164,7 +164,7 @@ class AdvancedSettingsDialog(QDialog):
         # Long press key command
         self.button_long_key = QLineEdit()
         self.button_long_key.setText(self.config.get("buttonLongKey", ""))
-        self.button_long_key.setPlaceholderText("e.g., CTRL+0")
+        self.button_long_key.setPlaceholderText("e.g., CTRL+0, ESC, ALT+F4")
         form.addRow("Long Press Key:", self.button_long_key)
 
         # Long press threshold
@@ -448,7 +448,7 @@ class ArduinoConfigurator(QMainWindow):
         # Info label
         info_label = QLabel(
             "💡 Tips: Use interrupt pins (2,3,18,19,20,21) for encoders. "
-            "All keyboard commands start with CTRL+. "
+            "Keyboard commands support flexible format: single keys (A, F1), modifiers (CTRL+F, SHIFT+A), or multi-key (A+B+C). "
             "Use 'Advanced Settings' for displays, encoder buttons, and LED control."
         )
         info_label.setWordWrap(True)
@@ -616,8 +616,8 @@ class ArduinoConfigurator(QMainWindow):
         self.config_table.setCellWidget(row, 4, mode_combo)
 
         # Keyboard Command
-        key_input = QLineEdit("CTRL+")
-        key_input.setPlaceholderText("e.g., CTRL+F or CTRL+UPARROW")
+        key_input = QLineEdit()
+        key_input.setPlaceholderText("e.g., CTRL+F, A, SHIFT+A+B, F1")
         self.config_table.setCellWidget(row, 5, key_input)
 
         self.log_console(f"Added input row {row + 1}")
