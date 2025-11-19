@@ -30,7 +30,8 @@ class Updater:
         self.repo_name = repo_name
         self.project_root = Path(__file__).parent.parent.absolute()
         self.current_version = current_version or self._read_version_file()
-        self.github_api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
+        # Use /releases instead of /releases/latest to avoid caching issues
+        self.github_api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases"
 
     def _read_version_file(self):
         """Read current version from VERSION file."""
@@ -59,12 +60,30 @@ class Updater:
             None if check failed
         """
         try:
-            # Query GitHub API for latest release
+            # Query GitHub API for all releases
             req = urllib.request.Request(self.github_api_url)
             req.add_header('User-Agent', 'Arduino-Input-Configurator')
 
             with urllib.request.urlopen(req, timeout=timeout) as response:
-                data = json.loads(response.read().decode())
+                releases = json.loads(response.read().decode())
+
+            # Find the latest non-draft, non-prerelease version
+            data = None
+            for release in releases:
+                if not release.get('draft', False) and not release.get('prerelease', False):
+                    data = release
+                    break
+
+            if not data:
+                # No stable releases found
+                return {
+                    'available': False,
+                    'latest_version': self.current_version,
+                    'current_version': self.current_version,
+                    'download_url': None,
+                    'release_notes': 'No stable releases available on GitHub yet.',
+                    'html_url': f'https://github.com/{self.repo_owner}/{self.repo_name}/releases'
+                }
 
             latest_version = data['tag_name'].lstrip('v')  # Remove 'v' prefix if present
             download_url = None
